@@ -22,13 +22,13 @@ public interface ParkingRepository extends JpaRepository<Parking, Long> {
     @Query(value = """
         SELECT p.* FROM parkings p
         WHERE ST_DWithin(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
             :radius
         )
         ORDER BY ST_Distance(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
         )
         """, nativeQuery = true)
     List<Parking> findNearby(
@@ -43,14 +43,14 @@ public interface ParkingRepository extends JpaRepository<Parking, Long> {
     @Query(value = """
         SELECT p.* FROM parkings p
         WHERE ST_DWithin(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
             :radius
         )
         AND p.category = :category
         ORDER BY ST_Distance(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
         )
         """, nativeQuery = true)
     List<Parking> findNearbyByCategory(
@@ -66,14 +66,14 @@ public interface ParkingRepository extends JpaRepository<Parking, Long> {
     @Query(value = """
         SELECT p.* FROM parkings p
         WHERE ST_DWithin(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
             :radius
         )
         AND p.available_spots > 0
         ORDER BY ST_Distance(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
         )
         """, nativeQuery = true)
     List<Parking> findNearbyAvailable(
@@ -88,14 +88,14 @@ public interface ParkingRepository extends JpaRepository<Parking, Long> {
     @Query(value = """
         SELECT p.* FROM parkings p
         WHERE ST_DWithin(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
             :radius
         )
         AND p.has_ev_charging = true
         ORDER BY ST_Distance(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
         )
         """, nativeQuery = true)
     List<Parking> findNearbyEV(
@@ -110,14 +110,14 @@ public interface ParkingRepository extends JpaRepository<Parking, Long> {
     @Query(value = """
         SELECT p.* FROM parkings p
         WHERE ST_DWithin(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
             :radius
         )
         AND p.has_disabled_access = true
         ORDER BY ST_Distance(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
         )
         """, nativeQuery = true)
     List<Parking> findNearbyDisabled(
@@ -132,14 +132,14 @@ public interface ParkingRepository extends JpaRepository<Parking, Long> {
     @Query(value = """
         SELECT p.* FROM parkings p
         WHERE ST_DWithin(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
             :radius
         )
         AND p.is_covered = true
         ORDER BY ST_Distance(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
         )
         """, nativeQuery = true)
     List<Parking> findNearbyCovered(
@@ -154,14 +154,14 @@ public interface ParkingRepository extends JpaRepository<Parking, Long> {
     @Query(value = """
         SELECT p.* FROM parkings p
         WHERE ST_DWithin(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography),
             :radius
         )
         AND p.is_free = true
         ORDER BY ST_Distance(
-            p.geom::geography,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            CAST(p.geom AS geography),
+            CAST(ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) AS geography)
         )
         """, nativeQuery = true)
     List<Parking> findNearbyFree(

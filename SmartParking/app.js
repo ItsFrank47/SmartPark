@@ -123,11 +123,11 @@ async function checkApiHealth() {
     }
 }
 
-async function fetchParkingsNearby(lat, lng, radius = 5000) {
+async function fetchParkingsNearby(lat, lng, radius = 25000) {
     return apiGet(`${API_BASE}/nearby?lat=${lat}&lng=${lng}&radius=${radius}`);
 }
 
-async function fetchParkingsFiltered(lat, lng, radius = 5000, type = 'all') {
+async function fetchParkingsFiltered(lat, lng, radius = 25000, type = 'all') {
     return apiGet(`${API_BASE}/filter?lat=${lat}&lng=${lng}&radius=${radius}&type=${type}`);
 }
 
@@ -170,11 +170,12 @@ function renderMarkers(data) {
 // ============================================
 // LOAD DATA
 // ============================================
-async function loadData(filter = 'all') {
+async function loadData(filter = 'all', center = null) {
     activeFilter = filter;
+    if (center) currentCenter = center;
     const data = filter === 'all'
-        ? await fetchParkingsNearby(currentCenter.lat, currentCenter.lng, 5000)
-        : await fetchParkingsFiltered(currentCenter.lat, currentCenter.lng, 5000, filter);
+        ? await fetchParkingsNearby(currentCenter.lat, currentCenter.lng, 25000)
+        : await fetchParkingsFiltered(currentCenter.lat, currentCenter.lng, 25000, filter);
 
     if (data && data.length > 0) {
         parkingList = data;
@@ -186,6 +187,17 @@ async function loadData(filter = 'all') {
         updateApiStatus(false);
         loadFallbackData(filter);
     }
+}
+
+function showParkingOnMap(p) {
+    if (!p || p.lat == null || p.lng == null) return;
+    if (activeFilter === 'all' || p.category === activeFilter) {
+        if (!parkingList.some(x => x.id === p.id)) {
+            parkingList.push(p);
+        }
+        renderMarkers(parkingList);
+    }
+    if (map) map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 15), { duration: 0.8 });
 }
 
 function updateApiStatus(online) {
@@ -341,10 +353,7 @@ async function handleAddParking() {
     const saved = await createParking(payload);
 
     if (saved) {
-        // Aggiungi al fallback locale
-        if (!saved.id) saved.id = ++fallbackIdCounter;
-        FALLBACK_DATA.push({ ...saved, lat: saved.lat, lng: saved.lng });
-        showNotification('Parcheggio creato con successo!', 'success');
+        showNotification('Parcheggio creato con successo e salvato nel database!', 'success');
         toggleAddMode();
         form.reset();
         document.getElementById('addLat').value = '';
@@ -352,15 +361,24 @@ async function handleAddParking() {
         document.getElementById('addCoordDisplay').textContent = 'Inserisci un indirizzo qui sotto';
         document.getElementById('addCoordDisplay').className = 'text-xs text-slate-400';
         document.getElementById('addSaveBtn').disabled = true;
-        loadData(activeFilter);
+        showParkingOnMap(saved);
+        loadData(activeFilter, { lat: saved.lat, lng: saved.lng });
     } else {
-        // Salva comunque in locale (modalita offline)
-        const localP = { ...payload, id: ++fallbackIdCounter, status: 'Libero' };
-        FALLBACK_DATA.push(localP);
-        showNotification('Salvato in modalita offline (backend non raggiungibile)', 'warning');
-        toggleAddMode();
-        form.reset();
-        loadData(activeFilter);
+        const retry = await createParking(payload);
+        if (retry) {
+            showNotification('Parcheggio creato con successo e salvato nel database!', 'success');
+            toggleAddMode();
+            form.reset();
+            document.getElementById('addLat').value = '';
+            document.getElementById('addLng').value = '';
+            document.getElementById('addCoordDisplay').textContent = 'Inserisci un indirizzo qui sotto';
+            document.getElementById('addCoordDisplay').className = 'text-xs text-slate-400';
+            document.getElementById('addSaveBtn').disabled = true;
+            showParkingOnMap(retry);
+            loadData(activeFilter, { lat: retry.lat, lng: retry.lng });
+            return;
+        }
+        showNotification('Errore: backend non raggiungibile, il parcheggio NON è stato salvato nel database. Riprova.', 'error');
     }
 }
 

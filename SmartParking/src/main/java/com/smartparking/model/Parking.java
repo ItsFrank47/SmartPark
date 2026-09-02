@@ -1,7 +1,6 @@
 package com.smartparking.model;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.Type;
 import org.locationtech.jts.geom.Point;
 
 import java.math.BigDecimal;
@@ -58,7 +57,6 @@ public class Parking {
 
     // Geometria PostGIS - punto in WGS84 (SRID 4326)
     @Column(nullable = false)
-    @Type(org.hibernate.spatial.JtsGeometryType.class)
     private Point geom;
 
     @Column(name = "has_ev_charging")

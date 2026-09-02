@@ -1,0 +1,7 @@
+/app/src/main/java/com/smartparking/dto/CreateParkingRequest.java
+/app/src/main/java/com/smartparking/repository/ParkingRepository.java
+/app/src/main/java/com/smartparking/SmartParkingApplication.java
+/app/src/main/java/com/smartparking/config/CorsConfig.java
+/app/src/main/java/com/smartparking/model/Parking.java
+/app/src/main/java/com/smartparking/dto/ParkingDTO.java
+/app/src/main/java/com/smartparking/controller/ParkingController.java

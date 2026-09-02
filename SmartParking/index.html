@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SmartParking Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0F172A',
+                        'primary-light': '#1E293B',
+                        accent: '#2563EB',
+                        'accent-hover': '#1D4ED8',
+                        'marker-blue': '#3B82F6',
+                        'marker-green': '#10B981',
+                        'marker-purple': '#8B5CF6',
+                        'marker-orange': '#F97316',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-gray-100">
+
+    <!-- HEADER -->
+    <div class="header-wrapper">
+        <div class="bg-primary px-4 pt-3 pb-3 shadow-lg">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-9 h-9 bg-accent rounded-xl flex items-center justify-center">
+                        <i class="fas fa-parking text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-white font-bold text-base leading-tight">SmartParking</h1>
+                        <p class="text-slate-400 text-[10px] leading-tight tracking-wide">MAP</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="apiStatus" class="flex items-center text-[10px] text-slate-400 bg-primary-light rounded-full px-2 py-1">
+                        <span class="connection-dot offline" id="connDot"></span>
+                        <span id="connLabel">Offline</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center cursor-pointer">
+                        <i class="fas fa-user text-accent text-xs"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchInput" placeholder="Cerca parcheggio, via, zona..."
+                        class="search-input w-full bg-primary-light text-white text-sm rounded-xl py-2.5 pl-10 pr-4 placeholder-slate-500 border border-slate-700 focus:border-accent transition-colors" />
+                </div>
+                <button onclick="centerOnGPS()" class="w-10 h-10 bg-accent rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-accent-hover active:scale-95 transition-all" title="La mia posizione">
+                    <i class="fas fa-crosshairs text-white text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar px-3">
+        <div class="flex gap-2 pb-2">
+            <button class="filter-chip active px-4 py-2 rounded-full bg-white text-sm font-medium text-slate-600 shadow-sm border border-slate-200 flex items-center gap-1.5" data-filter="all" onclick="toggleFilter(this, 'all')">
+                <i class="fas fa-layer-group text-xs"></i> Tutti
+            </button>
+            <button class="filter-chip px-4 py-2 rounded-full bg-white text-sm font-medium text-slate-600 shadow-sm border border-slate-200 flex items-center gap-1.5" data-filter="free" onclick="toggleFilter(this, 'free')">
+                <i class="fas fa-check-circle text-marker-green text-xs"></i> Gratuiti
+            </button>
+            <button class="filter-chip px-4 py-2 rounded-full bg-white text-sm font-medium text-slate-600 shadow-sm border border-slate-200 flex items-center gap-1.5" data-filter="underground" onclick="toggleFilter(this, 'underground')">
+                <i class="fas fa-warehouse text-marker-purple text-xs"></i> Sotterranei
+            </button>
+            <button class="filter-chip px-4 py-2 rounded-full bg-white text-sm font-medium text-slate-600 shadow-sm border border-slate-200 flex items-center gap-1.5" data-filter="ev" onclick="toggleFilter(this, 'ev')">
+                <i class="fas fa-bolt text-marker-orange text-xs"></i> Ricarica EV
+            </button>
+            <button class="filter-chip px-4 py-2 rounded-full bg-white text-sm font-medium text-slate-600 shadow-sm border border-slate-200 flex items-center gap-1.5" data-filter="disabled" onclick="toggleFilter(this, 'disabled')">
+                <i class="fas fa-wheelchair text-marker-orange text-xs"></i> Disabili
+            </button>
+        </div>
+    </div>
+
+    <!-- MAP -->
+    <div id="map"></div>
+
+    <!-- FAB GPS + ADD -->
+    <div class="fixed bottom-6 right-4 z-[998] flex flex-col gap-3 items-end">
+        <button id="addModeBtn" class="fab-button bg-accent" onclick="toggleAddMode()" title="Aggiungi parcheggio">
+            <i class="fas fa-plus text-xl"></i>
+        </button>
+        <button class="fab-button" onclick="centerOnGPS()" title="Geolocalizza" style="width:48px;height:48px;font-size:0.875rem;">
+            <i class="fas fa-crosshairs"></i>
+        </button>
+    </div>
+
+    <!-- NOTIFICATION CONTAINER -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <!-- ADD PANEL (slide-up form) -->
+    <div class="add-panel" id="addPanel">
+        <div class="drag-handle" style="margin-top:12px;"></div>
+        <div class="px-5 pb-6 pt-2">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-primary flex items-center gap-2">
+                    <i class="fas fa-plus-circle text-accent"></i> Nuovo Parcheggio
+                </h2>
+                <button onclick="toggleAddMode()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
+                    <i class="fas fa-times text-slate-500 text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Coord indicator -->
+            <div class="bg-slate-50 rounded-xl p-3 mb-4 border border-slate-200 flex items-center gap-2">
+                <i class="fas fa-map-marker-alt text-red-500"></i>
+                <div>
+                    <p class="text-[11px] text-slate-500 uppercase tracking-wider font-medium">Posizione</p>
+                    <p id="addCoordDisplay" class="text-xs text-slate-400">Inserisci un indirizzo qui sotto</p>
+                </div>
+            </div>
+            <input type="hidden" id="addLat" />
+            <input type="hidden" id="addLng" />
+
+            <form id="addForm" onsubmit="event.preventDefault(); handleAddParking();">
+                <!-- Nome -->
+                <div class="mb-3">
+                    <label class="text-xs font-semibold text-slate-600 mb-1 block">Nome *</label>
+                    <input name="name" required placeholder="es. Parcheggio Corso Buenos Aires"
+                        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                </div>
+
+                <!-- Indirizzo -->
+                <div class="mb-3">
+                    <label class="text-xs font-semibold text-slate-600 mb-1 block">Indirizzo</label>
+                    <input name="address" placeholder="es. Corso Buenos Aires 10, Milano"
+                        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                </div>
+
+                <!-- Categoria + Tipo -->
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Categoria *</label>
+                        <select name="category" required onchange="this.form.parkingType.value = this.options[this.selectedIndex].text"
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent bg-white transition-colors">
+                            <option value="paid">A pagamento</option>
+                            <option value="free">Gratuito</option>
+                            <option value="underground">Sotterraneo</option>
+                            <option value="ev">Ricarica EV</option>
+                            <option value="disabled">Disabili</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Tipo Parcheggio</label>
+                        <input name="parkingType" placeholder="es. Strisce Blu"
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                    </div>
+                </div>
+
+                <!-- Tariffa + Posti + 24h -->
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Tariffa/h €</label>
+                        <input name="hourlyRate" type="number" step="0.10" min="0" placeholder="0.00"
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Posti totali</label>
+                        <input name="totalSpots" type="number" min="0" placeholder="50"
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                    </div>
+                    <div class="flex items-end pb-1">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input name="valid24h" type="checkbox" class="w-4 h-4 accent-accent rounded" />
+                            <span class="text-xs font-medium text-slate-600">24/7</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Orari -->
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Apertura</label>
+                        <input name="openingTime" type="time"
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 mb-1 block">Chiusura</label>
+                        <input name="closingTime" type="time"
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                    </div>
+                </div>
+
+                <!-- Servizi (checkboxes) -->
+                <p class="text-xs font-semibold text-slate-600 mb-2">Servizi</p>
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input name="hasEvCharging" type="checkbox" class="w-3.5 h-3.5 accent-accent rounded" /> Ricarica EV
+                    </label>
+                    <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input name="hasDisabledAccess" type="checkbox" class="w-3.5 h-3.5 accent-accent rounded" /> Disabili
+                    </label>
+                    <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input name="isCovered" type="checkbox" class="w-3.5 h-3.5 accent-accent rounded" /> Coperto
+                    </label>
+                    <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input name="isGuarded" type="checkbox" class="w-3.5 h-3.5 accent-accent rounded" /> Custodito
+                    </label>
+                    <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input name="hasParcometro" type="checkbox" class="w-3.5 h-3.5 accent-accent rounded" /> Parcometro
+                    </label>
+                    <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input name="hasVideoSurveillance" type="checkbox" class="w-3.5 h-3.5 accent-accent rounded" /> Videosorv.
+                    </label>
+                </div>
+
+                <!-- Restrizioni -->
+                <p class="text-xs font-semibold text-slate-600 mb-2">Restrizioni</p>
+                <div class="mb-3">
+                    <input name="restrictionNote" placeholder="es. Pulizia strada"
+                        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-accent transition-colors" />
+                </div>
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div>
+                        <label class="text-[10px] font-semibold text-slate-500 mb-1 block">Giorno</label>
+                        <select name="restrictionDay" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-accent bg-white">
+                            <option value="">-</option>
+                            <option>Lunedi</option><option>Martedi</option><option>Mercoledi</option>
+                            <option>Giovedi</option><option>Venerdi</option><option>Sabato</option><option>Domenica</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-semibold text-slate-500 mb-1 block">Da</label>
+                        <input name="restrictionStart" type="time" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-accent" />
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-semibold text-slate-500 mb-1 block">A</label>
+                        <input name="restrictionEnd" type="time" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-accent" />
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <button id="addSaveBtn" type="submit" disabled
+                    class="w-full bg-accent hover:bg-accent-hover disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-accent/25">
+                    <i class="fas fa-save"></i> Salva Parcheggio
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- BOTTOM SHEET OVERLAY -->
+    <div class="bottom-sheet-overlay" id="sheetOverlay"></div>
+
+    <!-- BOTTOM SHEET (Dettaglio) -->
+    <div class="bottom-sheet bg-white shadow-2xl" id="bottomSheet">
+        <div class="drag-handle"></div>
+        <div class="px-5 pb-6 pt-1">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex-1">
+                    <h2 id="sheetTitle" class="text-lg font-bold text-primary leading-tight">-</h2>
+                    <p id="sheetSubtitle" class="text-sm text-slate-500 mt-0.5">-</p>
+                </div>
+                <button onclick="closeBottomSheet()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 ml-3 hover:bg-slate-200 active:scale-95 transition-all">
+                    <i class="fas fa-times text-slate-500 text-xs"></i>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-2 mb-4 flex-wrap">
+                <span id="sheetBadge" class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1"></span>
+                <span id="sheetCoverBadge" class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold flex items-center gap-1"></span>
+                <span id="sheetStatus" class="status-badge px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ml-auto"></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fas fa-euro-sign text-accent text-xs"></i>
+                        <span class="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Tariffa</span>
+                    </div>
+                    <p id="sheetTariff" class="text-xl font-bold text-primary">-</p>
+                </div>
+                <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fas fa-clock text-accent text-xs"></i>
+                        <span class="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Validita</span>
+                    </div>
+                    <p id="sheetHours" class="text-xl font-bold text-primary">-</p>
+                </div>
+                <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fas fa-car-side text-accent text-xs"></i>
+                        <span class="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Posti</span>
+                    </div>
+                    <p id="sheetSpots" class="text-xl font-bold text-primary">-</p>
+                </div>
+                <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fas fa-road text-accent text-xs"></i>
+                        <span class="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Indirizzo</span>
+                    </div>
+                    <p id="sheetDistance" class="text-sm font-bold text-primary">-</p>
+                </div>
+            </div>
+
+            <div id="sheetWarnings" class="mb-4"></div>
+
+            <div class="mb-5">
+                <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2.5">Servizi disponibili</h3>
+                <div id="sheetServices" class="flex gap-2 flex-wrap"></div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="openNavigation()" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-accent/25">
+                    <i class="fas fa-diamond-turn-right"></i> Naviga
+                </button>
+                <button id="deleteBtn" class="w-14 bg-red-500 hover:bg-red-600 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center transition-all active:scale-[0.98] shadow-lg shadow-red-500/25">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
